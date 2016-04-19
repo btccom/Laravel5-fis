@@ -3,7 +3,7 @@
 namespace BTCCOM\Fis;
 
 use Exception;
-use Illuminate\Foundation\Testing\TestCase;
+use TestCase;
 
 class FisTest extends TestCase {
 
