@@ -1,0 +1,19 @@
+{
+  "name": "btccom/fis",
+  "license": "BSD-2-Clause",
+  "version": "0.1",
+  "authors": [
+    {
+      "name": "Tianzhao Li",
+      "email": "tianzhao.li@bitmain.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "BTCCOM\\Fis\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=7.0.0"
+  }
+}

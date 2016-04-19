@@ -1,0 +1,191 @@
+{
+  "res": {
+    "lib/dropload/dropload.css": {
+      "uri": "/assets/lib/dropload/dropload.css",
+      "type": "css"
+    },
+    "lib/dropload/dropload.js": {
+      "uri": "/assets/lib/dropload/dropload.js",
+      "type": "js"
+    },
+    "lib/dropload/dropload.min.js": {
+      "uri": "/assets/lib/dropload/dropload.min.js",
+      "type": "js"
+    },
+    "main.js": {
+      "uri": "/assets/main.js",
+      "type": "js"
+    },
+    "mod.js": {
+      "uri": "/assets/mod.js",
+      "type": "js"
+    },
+    "modules/a.js": {
+      "uri": "/assets/modules/a.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/a"
+      },
+      "deps": [
+        "modules/b.js"
+      ]
+    },
+    "modules/b.js": {
+      "uri": "/assets/modules/b.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/b"
+      },
+      "deps": [
+        "./haah"
+      ]
+    },
+    "modules/article.js": {
+      "uri": "/assets/modules/article.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/article"
+      },
+      "deps": [
+        "modules/thirdparty/vue.js",
+        "modules/thirdparty/zepto.js",
+        "modules/thirdparty/moment.js"
+      ]
+    },
+    "modules/thirdparty/vue.js": {
+      "uri": "/assets/modules/thirdparty/vue.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/vue"
+      },
+      "pkg": "p0"
+    },
+    "modules/thirdparty/zepto.js": {
+      "uri": "/assets/modules/thirdparty/zepto.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/zepto"
+      },
+      "pkg": "p0"
+    },
+    "modules/thirdparty/moment.js": {
+      "uri": "/assets/modules/thirdparty/moment.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/moment"
+      },
+      "deps": [
+        "./locale"
+      ],
+      "pkg": "p0"
+    },
+    "modules/c.js": {
+      "uri": "/assets/modules/c.js",
+      "type": "js",
+      "extras": {
+        "async": [
+          "modules/b.js"
+        ],
+        "moduleId": "modules/c"
+      }
+    },
+    "modules/thirdparty/fastclick.js": {
+      "uri": "/assets/modules/thirdparty/fastclick.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/fastclick"
+      },
+      "pkg": "p0"
+    },
+    "modules/thirdparty/marked.js": {
+      "uri": "/assets/modules/thirdparty/marked.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/marked"
+      },
+      "pkg": "p0"
+    },
+    "modules/thirdparty/moment-zh-cn.js": {
+      "uri": "/assets/modules/thirdparty/moment-zh-cn.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/moment-zh-cn"
+      },
+      "deps": [
+        "modules/thirdparty/moment.js"
+      ],
+      "pkg": "p0"
+    },
+    "modules/thirdparty/scrollreveal.js": {
+      "uri": "/assets/modules/thirdparty/scrollreveal.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/thirdparty/scrollreveal"
+      },
+      "pkg": "p0"
+    },
+    "news_article.css": {
+      "uri": "/assets/news_article.css",
+      "type": "css"
+    },
+    "dir/index3": {
+      "uri": "/assets/views/dir/index3.blade.php",
+      "type": "php",
+      "deps": [
+        "modules/thirdparty/moment.js"
+      ]
+    },
+    "index": {
+      "uri": "/assets/views/index.blade.php",
+      "type": "php",
+      "extras": {
+        "async": [
+          "modules/article.js",
+          "modules/c.js"
+        ]
+      },
+      "deps": [
+        "modules/A.js"
+      ]
+    },
+    "modules/A.js": {
+      "uri": "/assets/modules/A.js",
+      "type": "js",
+      "extras": {
+        "moduleId": "modules/A"
+      },
+      "deps": [
+        "modules/b.js"
+      ]
+    },
+    "index2": {
+      "uri": "/assets/views/index2.blade.php",
+      "type": "php",
+      "deps": [
+        "modules/thirdparty/zepto.js"
+      ]
+    },
+    "layout": {
+      "uri": "/assets/views/layout.blade.php",
+      "type": "php"
+    }
+  },
+  "pkg": {
+    "p0": {
+      "uri": "/assets/lib.js",
+      "type": "js",
+      "has": [
+        "modules/thirdparty/vue.js",
+        "modules/thirdparty/zepto.js",
+        "modules/thirdparty/moment.js",
+        "modules/thirdparty/fastclick.js",
+        "modules/thirdparty/marked.js",
+        "modules/thirdparty/moment-zh-cn.js",
+        "modules/thirdparty/scrollreveal.js"
+      ],
+      "deps": [
+        "./locale"
+      ]
+    }
+  }
+}
