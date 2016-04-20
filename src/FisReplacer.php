@@ -17,9 +17,11 @@ class FisReplacer {
     public function handle($request, Closure $next) {
         /** @var Fis $fis */
         $fis = app('fis');
+
         /** @var Response $response */
         $response = $next($request);
-        if (!$response->original instanceof View) {
+
+        if (!property_exists($response, 'original') || !$response->original instanceof View) {
             return $response;
         }
 
