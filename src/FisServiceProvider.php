@@ -6,11 +6,8 @@ use Illuminate\Support\ServiceProvider;
 
 class FisServiceProvider extends ServiceProvider {
     public function register() {
-        $this->mergeConfigFrom(__DIR__ . '/config/fis.php', 'fis');
-
-        $this->app->singleton(Fis::class, function() {
-            $path = public_path('assets/assets.json');
-            return new Fis($path);
+        $this->app->singleton(Fis::class, function($app, array $params) {
+            return new Fis($params[0]);
         });
 
         $this->app->alias(Fis::class, 'fis');
