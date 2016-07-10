@@ -19,6 +19,9 @@ class FisReplacer {
     public function handle($request, Closure $next) {
         /** @var Response $response */
         $response = $next($request);
+
+        if (!method_exists($response, 'content')) return $response;
+
         $content = $response->content();
 
         /** @var Fis $fis */
