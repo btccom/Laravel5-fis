@@ -5,26 +5,54 @@ namespace BTCCOM\Fis;
 class Fis {
     /** @var array */
     protected $assets_map;
+    protected $resourcePlaceHolder = '<!-- fis::resource -->';
+    protected $asyncScripts = [];
+    protected $syncScripts = [];
 
     /**
-     * Fis constructor.
-     * @param string $assets_path
+     * @return string
      */
-    public function __construct(string $assets_path) {
-        $this->setAssetsMap($assets_path);
+    public function getResourcePlaceHolder() {
+        return $this->resourcePlaceHolder;
+    }
+
+    public function useFramework($map_name = null) {
+        $path = $this->getAssetsFilePath($map_name ?? 'assets');
+        $this->setAssetsMap($path);
+
+        return $this->resourcePlaceHolder;
+    }
+
+    protected function getAssetsFilePath(string $name) {
+        foreach ([$name, 'assets'] as $v) {
+            $path = resource_path("assets_map/$v.json");
+            if (is_readable($path)) return $path;
+        }
+
+        throw new \InvalidArgumentException('Assets File Not Found');
     }
 
     public function setAssetsMap(string $assets_path) {
-        if (!is_readable($assets_path)) {
-            throw new \InvalidArgumentException('invalid assets map path');
-        }
-
         $this->assets_map = json_decode(file_get_contents($assets_path), true);
 
         if (json_last_error() != JSON_ERROR_NONE ||
             !isset($this->assets_map['res']) ||
             !isset($this->assets_map['pkg'])) {
             throw new \InvalidArgumentException('invalid assets map');
+        }
+    }
+
+    public function useMap() {
+        return !is_null($this->assets_map);
+    }
+
+    public function addScript(string $type, array $ids) {
+        if ($type == 'async') {
+            $this->asyncScripts = array_merge($this->asyncScripts, $ids);
+        } else if ($type == 'sync') {
+            $this->syncScripts= array_merge($this->syncScripts, $ids);
+        } else {
+            throw new \InvalidArgumentException("invalid script type: $type");
         }
     }
 
@@ -70,19 +98,27 @@ class Fis {
         }
     }
 
-    public function getPageResource(string $view_name) {
-        $view_name = str_replace('.', '/', $view_name);
-
-        if (!isset($this->assets_map['res'][$view_name])) return null;
-
-        $resource = $this->assets_map['res'][$view_name];
-
-        return [
-            'type' => $resource['type'],
-            'key' => $view_name,
-            'deps' => isset($resource['deps']) ? $resource['deps'] : [],
-            'async_deps' => isset($resource['extras']['async']) ? $resource['extras']['async'] : []
+    /*
+     * 构建 resourceMap
+     * 思路：模块如被同步引用，则依赖的子模块按照代码实现进行同步或异步引用；
+     *      模块如被异步引用，则依赖的所有子模块均按照异步引用
+     */
+    public function buildResourceMap() {
+        $resource_map = [
+            'async' => [],
+            'sync' => [],
+            'pkg' => []
         ];
+
+        $this->digestNode([
+            'type' => 'php',
+            'deps' => $this->syncScripts,
+            'extras' => [
+                'async' => $this->asyncScripts
+            ]
+        ], $resource_map, 'sync');  //从页面开始均为 sync 类型
+
+        return $resource_map;
     }
 
     protected function digestNode(array $node, array &$resource_map, string $base_mode = 'sync') {
@@ -130,23 +166,6 @@ class Fis {
                 }
             }
         }
-    }
-
-    /*
-     * 构建 resourceMap
-     * 思路：模块如被同步引用，则依赖的子模块按照代码实现进行同步或异步引用；
-     *      模块如被异步引用，则依赖的所有子模块均按照异步引用
-    */
-    public function buildResourceMap(array $page_resource) {
-        $resource_map = [
-            'async' => [],
-            'sync' => [],
-            'pkg' => []
-        ];
-
-        $this->digestNode($this->assets_map['res'][$page_resource['key']], $resource_map, 'sync');
-
-        return $resource_map;
     }
 
     public function resourceMapToString(array $resource_map) {

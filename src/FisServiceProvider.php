@@ -6,10 +6,7 @@ use Illuminate\Support\ServiceProvider;
 
 class FisServiceProvider extends ServiceProvider {
     public function register() {
-        $this->app->singleton(Fis::class, function($app, array $params) {
-            return new Fis($params[0]);
-        });
-
+        $this->app->singleton(Fis::class);
         $this->app->alias(Fis::class, 'fis');
     }
 
