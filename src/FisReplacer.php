@@ -26,11 +26,19 @@ class FisReplacer {
 
         /** @var Fis $fis */
         $fis = app('fis');
-
         if (!$fis->useMap()) return $response;
 
-        $resource_map = $fis->buildResourceMap();
-        $content = str_replace($fis->getResourcePlaceHolder(), $fis->resourceMapToString($resource_map), $content);
+        $content = preg_replace_callback('="@btccom\.(sync|async):(.+?)"=', function($matches) use ($fis) {
+            $type = $matches[1];
+            $deps = array_map(function($d) {
+                return trim($d, "'\"");
+            }, explode('|', $matches[2]));
+
+            $fis->addDep($type, $deps);
+        }, $content);
+
+        $content = str_replace($fis->getCssPlaceHolder(), $fis->renderCss(), $content);
+        $content = str_replace($fis->getJsPlaceHolder(), $fis->renderJs() . $fis->renderResourceMap(), $content);
 
         $response->setContent($content);
         return $response;
