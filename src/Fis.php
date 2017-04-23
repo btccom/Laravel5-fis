@@ -5,26 +5,117 @@ namespace BTCCOM\Fis;
 class Fis {
     /** @var array */
     protected $assets_map;
+    protected $jsPlaceHolder = '<!-- fis::js -->';
+    protected $cssPlaceHolder = '<!-- fis::css --> ';
+
+    protected $asyncQueue = [];
+    protected $syncQueue = [];
+    protected $cssQueue = [];
 
     /**
-     * Fis constructor.
-     * @param string $assets_path
+     * @return string
      */
-    public function __construct(string $assets_path) {
-        $this->setAssetsMap($assets_path);
+    public function getJsPlaceHolder() {
+        return $this->jsPlaceHolder;
+    }
+
+    public function getCssPlaceHolder() {
+        return $this->cssPlaceHolder;
+    }
+
+    public function useFramework($map_name = null) {
+        $path = $this->getAssetsFilePath($map_name ?? 'assets');
+        $this->setAssetsMap($path);
+
+        return $this->getJsPlaceHolder();
+    }
+
+    protected function getAssetsFilePath(string $name) {
+        foreach ([$name, 'assets'] as $v) {
+            $path = resource_path("assets_map/$v.json");
+            if (is_readable($path)) return $path;
+        }
+
+        throw new \InvalidArgumentException('Assets File Not Found');
     }
 
     public function setAssetsMap(string $assets_path) {
-        if (!is_readable($assets_path)) {
-            throw new \InvalidArgumentException('invalid assets map path');
-        }
-
         $this->assets_map = json_decode(file_get_contents($assets_path), true);
 
         if (json_last_error() != JSON_ERROR_NONE ||
             !isset($this->assets_map['res']) ||
             !isset($this->assets_map['pkg'])) {
             throw new \InvalidArgumentException('invalid assets map');
+        }
+    }
+
+    public function useMap() {
+        return !is_null($this->assets_map);
+    }
+
+    public function addDep(string $type, array $ids) {
+        // 移除已添加过的依赖
+        $ids = array_filter($ids, function ($id) {
+            return !isset($this->asyncQueue[$id]) && !isset($this->syncQueue[$id]);
+        });
+
+        if ($type == 'async') {
+            foreach ($ids as $id) {
+                $this->addAsyncQueue($id);
+            }
+        } else if ($type == 'sync') {
+            foreach ($ids as $id) {
+                $this->addSyncQueue($id);
+            }
+        } else {
+            throw new \InvalidArgumentException("invalid script type: $type");
+        }
+    }
+
+    protected function addAsyncQueue(string $id) {
+        if (!isset($this->assets_map['res'][$id])) {
+            throw new \InvalidArgumentException('invalid id: ' . $id);
+        }
+
+        $type = $this->assets_map['res'][$id]['type'];
+        if ($type == 'js') {
+            $this->asyncQueue[$id] = 1;
+        } else if ($type == 'css') {
+            $this->cssQueue[$id] = 1;
+        } else {
+            throw new \InvalidArgumentException("invalid type: id = $id, type = $type");
+        }
+
+        // 异步资源的依赖均为异步
+        if (isset($this->assets_map['res'][$id]['deps'])) {
+            $this->addDep('async', $this->assets_map['res'][$id]['deps']);
+        }
+
+        if (isset($this->assets_map['res'][$id]['extras']['async'])) {
+            $this->addDep('async', $this->assets_map['res'][$id]['extras']['async']);
+        }
+    }
+
+    protected function addSyncQueue(string $id) {
+        if (!isset($this->assets_map['res'][$id])) {
+            throw new \InvalidArgumentException('invalid id: ' . $id);
+        }
+
+        $type = $this->assets_map['res'][$id]['type'];
+        if ($type == 'js') {
+            $this->syncQueue[$id] = 1;
+        } else if ($type == 'css') {
+            $this->cssQueue[$id] = 1;
+        } else {
+            throw new \InvalidArgumentException("invalid type: id = $id, type = $type");
+        }
+
+        if (isset($this->assets_map['res'][$id]['deps'])) {
+            $this->addDep('sync', $this->assets_map['res'][$id]['deps']);
+        }
+
+        if (isset($this->assets_map['res'][$id]['extras']['async'])) {
+            $this->addDep('async', $this->assets_map['res'][$id]['extras']['async']);
         }
     }
 
@@ -70,111 +161,73 @@ class Fis {
         }
     }
 
-    public function getPageResource(string $view_name) {
-        $view_name = str_replace('.', '/', $view_name);
-
-        if (!isset($this->assets_map['res'][$view_name])) return null;
-
-        $resource = $this->assets_map['res'][$view_name];
-
+    public function dump() {
         return [
-            'type' => $resource['type'],
-            'key' => $view_name,
-            'deps' => isset($resource['deps']) ? $resource['deps'] : [],
-            'async_deps' => isset($resource['extras']['async']) ? $resource['extras']['async'] : []
+            'sync' => $this->syncQueue,
+            'async' => $this->asyncQueue,
+            'css' => $this->cssQueue,
         ];
     }
 
-    protected function digestNode(array $node, array &$resource_map, string $base_mode = 'sync') {
-        if ($node['type'] == 'js') {
-            $standard_node = array_only($node, ['type', 'deps', 'pkg']);
-            $standard_node['url'] = $node['uri'];       //有毒，前后端字段不一致
-
-            if (isset($standard_node['deps'])) {
-                $standard_node['deps'] = array_filter(array_map(function(string $d) {
-                    return isset($this->assets_map['res'][$d]) ? $this->assets_map['res'][$d]['extras']['moduleId'] : null;
-                }, $standard_node['deps']));
-                if (!count($standard_node['deps'])) unset($standard_node['deps']);
-            }
-
-            // 如 async 模块在 sync 中已加载,则忽略
-            if (!isset($resource_map['sync'][$node['extras']['moduleId']])) {
-                $resource_map[$base_mode][$node['extras']['moduleId']] = $standard_node;
-            }
-
-            if (isset($standard_node['pkg'])) {
-                $pkg = $this->assets_map['pkg'][$standard_node['pkg']];
-                $standard_pkg = array_only($pkg, 'type');
-                $standard_pkg['url'] = $pkg['uri'];
-                $resource_map['pkg'][$standard_node['pkg']] = $standard_pkg;
-            }
-        }
-
-        if (isset($node['deps'])) {
-            $deps = $node['deps'];
-
-            foreach ($deps as $dep) {
-                if (isset($this->assets_map['res'][$dep])) {
-                    $sub_node = $this->assets_map['res'][$dep];
-                    $this->digestNode($sub_node, $resource_map, $base_mode);
+    public function renderCss() {
+        $pkg = [];
+        $output = [];
+        $html = '<link rel="stylesheet" href="%s" />';
+        foreach ($this->cssQueue as $css => $_) {
+            if (isset($this->assets_map['res'][$css]['pkg'])) {
+                $pkg_name = $this->assets_map['res'][$css]['pkg'];
+                if (!isset($pkg[$pkg_name])) {
+                    $pkg[$pkg_name] = 1;
+                    $output[] = sprintf($html, $this->assets_map['pkg'][$pkg_name]['uri']);
                 }
-            }
-        }
-
-        if (isset($node['extras']['async'])) {
-            $deps = $node['extras']['async'];
-            foreach ($deps as $dep) {
-                if (isset($this->assets_map['res'][$dep])) {
-                    $sub_node = $this->assets_map['res'][$dep];
-                    $this->digestNode($sub_node, $resource_map, 'async');
-                }
-            }
-        }
-    }
-
-    /*
-     * 构建 resourceMap
-     * 思路：模块如被同步引用，则依赖的子模块按照代码实现进行同步或异步引用；
-     *      模块如被异步引用，则依赖的所有子模块均按照异步引用
-    */
-    public function buildResourceMap(array $page_resource) {
-        $resource_map = [
-            'async' => [],
-            'sync' => [],
-            'pkg' => []
-        ];
-
-        $this->digestNode($this->assets_map['res'][$page_resource['key']], $resource_map, 'sync');
-
-        return $resource_map;
-    }
-
-    public function resourceMapToString(array $resource_map) {
-        // 输出同步脚本
-        $pkg_used = [];
-        $output = '';
-        foreach ($resource_map['sync'] as $s) {
-            if (isset($s['pkg']) && isset($resource_map['pkg'][$s['pkg']])) {
-                if (isset($pkg_used[$s['pkg']])) continue;
-
-                $pkg_used[$s['pkg']] = true;
-                $url = $resource_map['pkg'][$s['pkg']]['url'];
             } else {
-                $url = $s['url'];
+                $output[] = sprintf($html, $this->assets_map['res'][$css]['uri']);
             }
-            $output .= sprintf('<script src="%s"></script>', $url);
         }
 
-        // 输出异步资源
-        if ($resource_map['async']) {
-            $map = json_encode([
-                'res' => $resource_map['async'],
-                'pkg' => $resource_map['pkg'],
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!$output) return '';
 
-            $output .= "<script>require.resourceMap($map)</script>";
+        return join("\n", $output) . "\n";
+    }
+
+    public function renderJs() {
+        $pkg = [];
+        $output = [];
+        $html = '<script src="%s"></script>';
+
+        // 同步
+        foreach ($this->syncQueue as $js => $_) {
+            if (isset($this->assets_map['res'][$js]['pkg'])) {
+                $pkg_name = $this->assets_map['res'][$js]['pkg'];
+                if (!isset($pkg[$pkg_name])) {
+                    $pkg[$pkg_name] = 1;
+                    $output[] = sprintf($html, $this->assets_map['pkg'][$pkg_name]['uri']);
+                }
+            } else {
+                $output[] = sprintf($html, $this->assets_map['res'][$js]['uri']);
+            }
         }
 
-        return $output;
+        if (!$output) return '';
+
+        return join("\n", $output) . "\n";
+    }
+
+    public function renderResourceMap() {
+        $async = [
+            'res' => [],
+            'pkg' => [],
+        ];
+        foreach ($this->asyncQueue as $js => $_) {
+            $async['res'][$js] = $this->assets_map['res'][$js];
+            if (isset($this->assets_map['res'][$js]['pkg'])) {
+                $pkg_name = $this->assets_map['res'][$js]['pkg'];
+                $async['pkg'][$pkg_name] = $this->assets_map['pkg'][$pkg_name];
+            }
+        }
+
+        if (!$async['res'] && !$async['pkg']) return '';
+
+        return sprintf('<script>require.resourceMap(%s)</script>', json_encode($async, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 }
